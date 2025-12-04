@@ -546,7 +546,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Developer**: Ali Jahani
 - **Website**: https://jahaniwww.com
-- **Email**: [your-email@example.com](mailto:your-email@example.com)
+- **Email**: [satreyek@gmail.com](mailto:satreyek@gmail.com)
 
 ---
 
