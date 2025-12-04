@@ -355,223 +355,238 @@ func (h *Handler) WebHandler(w http.ResponseWriter, r *http.Request) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ToonDB Dashboard</title>
+    <title>ToonDB Admin Console</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/font-face.css" rel="stylesheet" type="text/css" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { font-family: 'Vazir', sans-serif; background-color: #f8fafc; color: #334155; }
-        .sidebar { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --bg-sidebar: #ffffff;
+            --bg-content: #f3f4f6;
+            --border-color: #e5e7eb;
+        }
+        body { font-family: 'Vazir', sans-serif; background-color: var(--bg-content); color: #1f2937; }
         .code-font { font-family: 'Courier New', Courier, monospace; }
         
-        /* Custom Scrollbar */
+        /* Modern Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        .glass-header { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(8px); border-bottom: 1px solid #e2e8f0; }
-        .table-row-hover:hover { background-color: #f1f5f9; }
-        .truncate-text { max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
         /* Animations */
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         
-        .toast { transform: translate(-50%, -150%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .toast { transform: translate(-50%, -150%); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .toast.show { transform: translate(-50%, 20px); }
+
+        .sidebar-item { transition: all 0.2s; border-right: 3px solid transparent; }
+        .sidebar-item:hover { background-color: #f9fafb; color: var(--primary); }
+        .sidebar-item.active { background-color: #eef2ff; color: var(--primary); border-right-color: var(--primary); }
+
+        .table-row-hover:hover td { background-color: #f8fafc; }
+        
+        .skeleton { background: #e2e8f0; animation: pulse 1.5s infinite; border-radius: 4px; color: transparent !important; }
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
+        .glass-panel { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(8px); border: 1px solid #e5e7eb; }
     </style>
 </head>
 <body class="h-screen flex overflow-hidden text-sm">
 
     <!-- Toast Notification -->
-    <div id="toast" class="fixed top-0 left-1/2 z-[60] px-6 py-3 rounded-lg shadow-xl text-white font-medium flex items-center gap-3 toast">
-        <i class="fas fa-info-circle"></i>
-        <span id="toastMsg">پیام سیستم</span>
+    <div id="toast" class="fixed top-0 left-1/2 z-[100] px-6 py-4 rounded-xl shadow-2xl text-white font-bold flex items-center gap-3 toast min-w-[300px]">
+        <div id="toastIcon"></div>
+        <span id="toastMsg"></span>
     </div>
 
-    <!-- Auth Overlay -->
-    <div id="authSection" class="fixed inset-0 z-50 bg-slate-900 bg-opacity-90 flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm transform transition-all scale-100">
-            <div class="text-center mb-8">
-                <div class="w-16 h-16 bg-indigo-600 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-indigo-200">
-                    <i class="fas fa-database text-2xl text-white"></i>
-                </div>
-                <h1 class="text-2xl font-bold text-slate-800">ToonDB</h1>
-                <p class="text-slate-500 mt-2">پنل مدیریت دیتابیس</p>
+    <!-- Login Screen -->
+    <div id="authSection" class="fixed inset-0 z-50 bg-slate-900 flex items-center justify-center">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-sm text-center">
+            <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg shadow-indigo-500/30">
+                <i class="fas fa-database text-3xl text-white"></i>
             </div>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-medium text-slate-500 mb-1 mr-1">کلید دسترسی (API Key)</label>
-                    <input type="password" id="apiKey" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-left dir-ltr transition-all bg-slate-50 focus:bg-white" placeholder="••••••••">
+            <h1 class="text-2xl font-bold text-gray-800 mb-1">ToonDB</h1>
+            <p class="text-gray-500 mb-6 text-xs">پنل مدیریت پایگاه داده</p>
+            
+            <div class="relative mb-4">
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <i class="fas fa-key text-gray-400"></i>
                 </div>
-                <button onclick="authenticate()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 transform hover:-translate-y-0.5">
-                    ورود به سیستم
-                </button>
+                <input type="password" id="apiKey" class="w-full pr-10 pl-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent dir-ltr" placeholder="کلید API را وارد کنید">
             </div>
-            <div id="authStatus" class="mt-4 text-center text-xs h-4"></div>
+            <button onclick="authenticate()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg hover:shadow-indigo-500/30">
+                ورود به پنل
+            </button>
+            <div id="authStatus" class="mt-4 h-5 text-xs"></div>
         </div>
     </div>
 
-    <!-- Main Layout -->
-    <div id="mainContent" class="hidden flex w-full h-full bg-slate-50">
+    <!-- Main App -->
+    <div id="mainContent" class="hidden flex w-full h-full bg-gray-50">
         
         <!-- Sidebar -->
-        <aside class="sidebar w-64 bg-white border-l border-slate-200 flex flex-col h-full shadow-sm z-20">
+        <aside class="w-72 bg-white border-l border-gray-200 flex flex-col h-full z-20 shadow-sm">
             <!-- Brand -->
-            <div class="h-16 flex items-center justify-between px-6 border-b border-slate-100">
-                <div class="font-bold text-lg text-indigo-600 flex items-center gap-2">
-                    <i class="fas fa-layer-group"></i> ToonDB
+            <div class="h-16 flex items-center px-6 border-b border-gray-100 bg-white">
+                <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white ml-3 shadow-md">
+                    <i class="fas fa-cubes"></i>
                 </div>
-                <div class="flex items-center gap-2">
-                     <span class="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-mono">v1.2</span>
-                </div>
+                <span class="font-bold text-lg text-gray-800 tracking-tight">ToonDB</span>
+                <span class="mr-auto text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full font-mono">v1.2</span>
             </div>
             
-            <!-- Search Collections -->
-            <div class="p-4 border-b border-slate-100 bg-slate-50/50">
+            <!-- Search -->
+            <div class="p-4 border-b border-gray-100">
                 <div class="relative">
-                    <i class="fas fa-search absolute right-3 top-2.5 text-slate-400 text-xs"></i>
-                    <input type="text" id="searchCollection" onkeyup="renderSidebar()" placeholder="جستجوی کالکشن..." class="w-full pr-8 pl-3 py-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-indigo-400 transition-all">
+                    <i class="fas fa-search absolute right-3 top-3 text-gray-400"></i>
+                    <input type="text" id="searchCollection" onkeyup="renderSidebar()" placeholder="جستجوی کالکشن..." class="w-full pr-9 pl-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-xs focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all">
                 </div>
             </div>
 
-            <!-- Collections List -->
-            <div class="flex-1 overflow-y-auto py-2 px-3 space-y-1" id="collectionsList">
+            <!-- Collections -->
+            <div class="flex-1 overflow-y-auto p-2 space-y-1" id="collectionsList">
                 <!-- Items injected by JS -->
             </div>
 
-            <!-- Footer Stats -->
-            <div class="p-4 border-t border-slate-100 bg-slate-50 text-xs text-slate-500 space-y-2">
-                <div class="flex justify-between items-center">
-                    <span><i class="fas fa-clock text-indigo-400 ml-1"></i>مدت فعالیت:</span>
-                    <span id="uptime" class="font-mono">00:00</span>
+            <!-- Sidebar Footer -->
+            <div class="p-4 border-t border-gray-100 bg-gray-50">
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div class="bg-white p-2 rounded border border-gray-200 text-center">
+                        <div class="text-[10px] text-gray-400">آپتایم</div>
+                        <div class="font-mono text-xs font-bold text-indigo-600" id="uptime">00:00</div>
+                    </div>
+                    <div class="bg-white p-2 rounded border border-gray-200 text-center">
+                        <div class="text-[10px] text-gray-400">حجم</div>
+                        <div class="font-mono text-xs font-bold text-emerald-600" id="dbSize">0 KB</div>
+                    </div>
                 </div>
-                <div class="flex justify-between items-center">
-                    <span><i class="fas fa-hdd text-indigo-400 ml-1"></i>حجم کل:</span>
-                    <span id="dbSize" class="font-mono">0 KB</span>
-                </div>
-                <button onclick="logout()" class="w-full mt-2 flex items-center justify-center gap-2 text-red-500 hover:bg-red-50 py-2 rounded-lg transition-colors font-medium">
-                    <i class="fas fa-power-off"></i> خروج
+                <button onclick="logout()" class="w-full flex items-center justify-center gap-2 text-gray-500 hover:text-red-600 hover:bg-red-50 py-2 rounded-lg transition-colors text-xs font-bold">
+                    <i class="fas fa-sign-out-alt"></i> خروج از حساب
                 </button>
             </div>
         </aside>
 
-        <!-- Content Area -->
-        <main class="flex-1 flex flex-col min-w-0 bg-white">
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col min-w-0 bg-gray-50">
             
-            <!-- Header Toolbar -->
-            <header class="h-16 glass-header flex justify-between items-center px-6 z-10">
+            <!-- Top Bar -->
+            <header class="h-16 bg-white border-b border-gray-200 flex justify-between items-center px-6 shadow-sm z-10">
                 <div class="flex items-center gap-4">
-                    <h2 id="pageTitle" class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <i class="fas fa-home text-slate-400"></i> داشبورد
+                    <h2 id="pageTitle" class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        <i class="fas fa-home text-gray-400"></i> داشبورد
                     </h2>
-                    <div id="collectionActions" class="hidden flex gap-2 border-r border-slate-200 pr-4 mr-2">
-                         <span class="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded flex items-center" id="recordCountBadge">0 رکورد</span>
-                    </div>
                 </div>
 
                 <div class="flex items-center gap-3">
-                    <button onclick="loadCollections()" class="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="بروزرسانی">
+                    <!-- Global Actions -->
+                     <div class="flex bg-gray-100 p-1 rounded-lg">
+                        <button onclick="backupDatabase()" class="p-2 text-gray-500 hover:text-indigo-600 hover:bg-white rounded shadow-sm transition-all" title="پشتیبان‌گیری">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <label class="p-2 text-gray-500 hover:text-indigo-600 hover:bg-white rounded shadow-sm transition-all cursor-pointer" title="بازیابی">
+                            <i class="fas fa-upload"></i>
+                            <input type="file" id="restoreFile" accept=".json" class="hidden" onchange="restoreDatabase()">
+                        </label>
+                    </div>
+
+                    <div class="h-6 w-px bg-gray-200"></div>
+
+                    <button onclick="loadCollections()" class="p-2 text-gray-400 hover:text-indigo-600 transition-colors" title="بروزرسانی">
                         <i class="fas fa-sync-alt spin-on-hover"></i>
                     </button>
                     
-                    <button onclick="showCreateModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 shadow-md shadow-indigo-100 transition-all transform active:scale-95">
+                    <button onclick="showCreateModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 shadow-lg shadow-indigo-200 transition-transform active:scale-95">
                         <i class="fas fa-plus"></i> رکورد جدید
                     </button>
-
-                    <!-- Settings Dropdown -->
-                    <div class="relative">
-                        <button onclick="toggleMenu('mainMenu')" class="p-2 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">
-                            <i class="fas fa-ellipsis-v px-1"></i>
-                        </button>
-                        <div id="mainMenu" class="hidden absolute left-0 top-full mt-2 w-48 bg-white border border-slate-100 rounded-xl shadow-xl z-50 overflow-hidden transform origin-top-left transition-all">
-                            <div class="p-1">
-                                <a href="#" onclick="backupDatabase()" class="flex items-center gap-2 px-4 py-2.5 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors">
-                                    <i class="fas fa-download w-5 text-center"></i>پشتیبان‌گیری
-                                </a>
-                                <label class="flex items-center gap-2 px-4 py-2.5 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 rounded-lg transition-colors cursor-pointer">
-                                    <i class="fas fa-upload w-5 text-center"></i>بازیابی
-                                    <input type="file" id="restoreFile" accept=".json" class="hidden" onchange="restoreDatabase()">
-                                </label>
-                            </div>
-                            <div class="border-t border-slate-100 p-1 hidden" id="collectionMenuOptions">
-                                <a href="#" onclick="deleteCurrentCollection()" class="flex items-center gap-2 px-4 py-2.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                                    <i class="fas fa-trash-alt w-5 text-center"></i>حذف کالکشن
-                                </a>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </header>
 
-            <!-- Workspace -->
-            <div class="flex-1 overflow-hidden relative">
+            <!-- Content Area -->
+            <div class="flex-1 overflow-hidden relative p-6">
                 
-                <!-- Dashboard View (Empty State) -->
-                <div id="dashboardView" class="absolute inset-0 p-8 overflow-y-auto">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                        <div class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg shadow-indigo-200">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <p class="text-indigo-100 text-xs font-medium mb-1">کالکشن‌های فعال</p>
-                                    <h3 class="text-3xl font-bold" id="dashTotalCollections">0</h3>
-                                </div>
-                                <div class="p-2 bg-white bg-opacity-20 rounded-lg">
-                                    <i class="fas fa-folder-open text-xl"></i>
+                <!-- Dashboard (Stats) -->
+                <div id="dashboardView" class="fade-in">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden group">
+                            <div class="absolute right-0 top-0 w-24 h-24 bg-indigo-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                            <div class="relative">
+                                <p class="text-gray-500 text-xs font-bold mb-2">تعداد کالکشن‌ها</p>
+                                <h3 class="text-4xl font-extrabold text-gray-800" id="dashTotalCollections">0</h3>
+                                <div class="mt-4 flex items-center text-indigo-600 text-xs font-bold">
+                                    <i class="fas fa-folder-open ml-1"></i> فعال
                                 </div>
                             </div>
                         </div>
-                        <div class="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <p class="text-slate-400 text-xs font-medium mb-1">مجموع رکوردها</p>
-                                    <h3 class="text-3xl font-bold text-slate-700" id="dashTotalKeys">0</h3>
-                                </div>
-                                <div class="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                                    <i class="fas fa-database text-xl"></i>
+                        <div class="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm relative overflow-hidden group">
+                            <div class="absolute right-0 top-0 w-24 h-24 bg-emerald-50 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
+                            <div class="relative">
+                                <p class="text-gray-500 text-xs font-bold mb-2">مجموع رکوردها</p>
+                                <h3 class="text-4xl font-extrabold text-gray-800" id="dashTotalKeys">0</h3>
+                                <div class="mt-4 flex items-center text-emerald-600 text-xs font-bold">
+                                    <i class="fas fa-database ml-1"></i> ذخیره شده
                                 </div>
                             </div>
+                        </div>
+                         <div class="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 shadow-lg text-white relative overflow-hidden">
+                            <div class="relative z-10">
+                                <h3 class="text-xl font-bold mb-2">وضعیت سیستم</h3>
+                                <p class="text-indigo-100 text-xs mb-4">دیتابیس در حالت پایدار و آنلاین است.</p>
+                                <div class="inline-flex items-center bg-white/20 px-3 py-1 rounded-full text-xs backdrop-blur-sm">
+                                    <div class="w-2 h-2 bg-green-400 rounded-full ml-2 animate-pulse"></div>
+                                    Online
+                                </div>
+                            </div>
+                            <i class="fas fa-server absolute left-4 bottom-4 text-6xl text-white/10"></i>
                         </div>
                     </div>
                     
-                    <div class="flex flex-col items-center justify-center h-64 text-slate-400">
-                        <i class="fas fa-mouse-pointer text-4xl mb-4 opacity-50"></i>
-                        <p>یک کالکشن را از منوی سمت راست انتخاب کنید</p>
+                    <div class="text-center py-20 bg-white rounded-2xl border border-gray-200 border-dashed">
+                        <div class="inline-block p-4 bg-gray-50 rounded-full mb-4">
+                            <i class="fas fa-mouse-pointer text-3xl text-gray-400"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-700">شروع کار</h3>
+                        <p class="text-gray-500 text-xs mt-1">یک کالکشن را از نوار سمت راست انتخاب کنید تا داده‌ها نمایش داده شوند</p>
                     </div>
                 </div>
 
                 <!-- Table View -->
-                <div id="tableView" class="absolute inset-0 flex flex-col bg-white hidden">
-                    <!-- Table Toolbar -->
-                    <div class="p-4 border-b border-slate-100 flex gap-4 bg-slate-50/30">
-                        <div class="relative flex-1 max-w-md">
-                            <i class="fas fa-filter absolute right-3 top-3 text-slate-400 text-xs"></i>
-                            <input type="text" id="searchKey" onkeyup="filterKeys()" placeholder="فیلتر کردن کلیدها..." class="w-full pr-8 pl-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all">
+                <div id="tableView" class="hidden h-full flex flex-col bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden fade-in">
+                    <!-- Toolbar -->
+                    <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <div class="relative max-w-md w-full">
+                            <i class="fas fa-filter absolute right-3 top-3 text-gray-400 text-xs"></i>
+                            <input type="text" id="searchKey" onkeyup="filterKeys()" placeholder="فیلتر کردن کلیدها..." class="w-full pr-9 pl-4 py-2 bg-white border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-all">
+                        </div>
+                        <div class="flex gap-2">
+                             <span class="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold" id="recordCountBadge">0 رکورد</span>
+                             <button onclick="deleteCurrentCollection()" class="bg-red-50 text-red-600 hover:bg-red-100 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors" title="حذف کالکشن">
+                                <i class="fas fa-trash-alt ml-1"></i> حذف کالکشن
+                             </button>
                         </div>
                     </div>
 
-                    <!-- The Table -->
+                    <!-- Table -->
                     <div class="flex-1 overflow-auto">
-                        <table class="w-full text-right border-collapse">
-                            <thead class="bg-slate-50 sticky top-0 z-10">
+                        <table class="w-full text-right">
+                            <thead class="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
                                 <tr>
-                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 w-1/4">کلید</th>
-                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">مقدار (پیش‌نمایش)</th>
-                                    <th class="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 w-32 text-center">عملیات</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/4 text-right">کلید (Key)</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">مقدار (Value)</th>
+                                    <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-24 text-center">عملیات</th>
                                 </tr>
                             </thead>
-                            <tbody id="keysTableBody" class="divide-y divide-slate-100">
+                            <tbody id="keysTableBody" class="divide-y divide-gray-100">
                                 <!-- Rows -->
                             </tbody>
                         </table>
                         
-                        <!-- Empty State inside Table -->
-                        <div id="tableEmptyState" class="hidden flex flex-col items-center justify-center py-20 text-slate-400">
-                            <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">
-                                <i class="fas fa-inbox text-2xl text-slate-300"></i>
-                            </div>
-                            <p>داده‌ای یافت نشد</p>
+                        <div id="tableEmptyState" class="hidden flex flex-col items-center justify-center py-20 text-gray-400">
+                            <i class="fas fa-box-open text-4xl mb-3 text-gray-300"></i>
+                            <p class="text-sm">داده‌ای در این کالکشن وجود ندارد</p>
                         </div>
                     </div>
                 </div>
@@ -580,101 +595,104 @@ func (h *Handler) WebHandler(w http.ResponseWriter, r *http.Request) {
         </main>
     </div>
 
-    <!-- Create/Edit Modal -->
-    <div id="modalBackdrop" class="fixed inset-0 z-[70] bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center transition-opacity opacity-0">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl transform scale-95 transition-all" id="modalContent">
-            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
-                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                    <span id="modalIcon"><i class="fas fa-plus-circle text-indigo-500"></i></span>
-                    <span id="modalTitle">رکورد جدید</span>
+    <!-- Modal -->
+    <div id="modalBackdrop" class="fixed inset-0 z-[70] bg-gray-900/60 backdrop-blur-sm hidden flex items-center justify-center transition-opacity opacity-0">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl transform scale-95 transition-all flex flex-col max-h-[90vh]" id="modalContent">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-2xl">
+                <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <span id="modalIcon" class="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm text-indigo-600"><i class="fas fa-pen"></i></span>
+                    <span id="modalTitle">ویرایش رکورد</span>
                 </h3>
-                <button onclick="closeModal()" class="text-slate-400 hover:text-red-500 transition-colors w-8 h-8 rounded-full hover:bg-red-50 flex items-center justify-center">
-                    <i class="fas fa-times"></i>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
             
-            <div class="p-6 space-y-5">
-                <div class="grid grid-cols-2 gap-5">
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto">
+                <div class="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1.5">نام کالکشن</label>
-                        <input type="text" id="inputCollection" class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 text-left dir-ltr bg-slate-50 focus:bg-white transition-all">
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5">نام کالکشن</label>
+                        <input type="text" id="inputCollection" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-left dir-ltr bg-gray-50 font-medium">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1.5">کلید (Key)</label>
-                        <input type="text" id="inputKey" class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 text-left dir-ltr bg-slate-50 focus:bg-white transition-all">
+                        <label class="block text-xs font-bold text-gray-500 mb-1.5">کلید (Key)</label>
+                        <input type="text" id="inputKey" class="w-full px-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-left dir-ltr bg-gray-50 font-medium">
                     </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1.5 flex justify-between">
-                        <span>مقدار (TOON Format)</span>
-                        <span class="text-indigo-500 cursor-pointer text-[10px]" onclick="prettifyJSON()">فرمت‌دهی JSON</span>
-                    </label>
-                    <textarea id="inputData" rows="8" class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-100 focus:border-indigo-500 code-font text-sm text-left dir-ltr bg-slate-900 text-green-400" placeholder="key: value"></textarea>
+                
+                <div class="relative">
+                    <div class="flex justify-between items-center mb-1.5">
+                        <label class="text-xs font-bold text-gray-500">داده‌ها (فرمت TOON)</label>
+                        <button onclick="prettifyJSON()" class="text-[10px] text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 px-2 py-0.5 rounded cursor-pointer">
+                            <i class="fas fa-magic mr-1"></i> مرتب‌سازی JSON
+                        </button>
+                    </div>
+                    <textarea id="inputData" rows="10" class="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent code-font text-sm text-left dir-ltr bg-gray-900 text-gray-300 leading-relaxed shadow-inner" placeholder="# Insert your data here...
+key: value"></textarea>
                 </div>
             </div>
             
-            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 rounded-b-2xl flex justify-end gap-3">
-                <button onclick="closeModal()" class="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-sm font-bold transition-all">انصراف</button>
-                <button onclick="saveRecord()" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 text-sm font-bold shadow-lg shadow-indigo-200 transition-all transform hover:-translate-y-0.5">
-                    <i class="fas fa-save ml-2"></i> ذخیره تغییرات
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 rounded-b-2xl flex justify-end gap-3">
+                <button onclick="closeModal()" class="px-5 py-2.5 bg-white border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-100 text-xs font-bold transition-all">انصراف</button>
+                <button onclick="saveRecord()" class="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 text-xs font-bold shadow-lg shadow-indigo-200 transition-all transform hover:-translate-y-0.5 flex items-center gap-2">
+                    <i class="fas fa-save"></i> ذخیره تغییرات
                 </button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- State Management ---
+        // State
         let state = {
             apiKey: localStorage.getItem('toondb_api_key') || '',
             collections: {},
             currentCol: null,
             startTime: Date.now(),
-            cache: {} // Cache for previews
+            cache: {}
         };
 
-        // --- Init ---
+        // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             if (state.apiKey) {
                 document.getElementById('apiKey').value = state.apiKey;
                 authenticate();
             }
-            
-            // Start Uptime Timer
+            startTimer();
+        });
+
+        function startTimer() {
             setInterval(() => {
                 const diff = Math.floor((Date.now() - state.startTime) / 1000);
                 const h = String(Math.floor(diff / 3600)).padStart(2, '0');
                 const m = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
                 document.getElementById('uptime').textContent = h + ':' + m;
-            }, 1000);
+            }, 60000);
+        }
 
-            // Close menu on outside click
-            window.addEventListener('click', (e) => {
-                if (!e.target.closest('.relative')) {
-                    document.getElementById('mainMenu').classList.add('hidden');
-                }
-            });
-        });
-
-        // --- API & Auth ---
+        // API Helper
         async function fetchAPI(endpoint, options = {}) {
             options.headers = { ...options.headers, 'X-API-Key': state.apiKey };
             try {
                 const res = await fetch(endpoint, options);
                 if (res.status === 401) {
                     logout();
-                    throw new Error('Unauthorized');
+                    throw new Error('Auth');
                 }
                 return res;
             } catch (err) {
-                showToast('خطا در ارتباط با سرور', 'error');
+                showToast('خطا در ارتباط', 'error');
                 throw err;
             }
         }
 
+        // Auth
         function authenticate() {
             const key = document.getElementById('apiKey').value;
-            const status = document.getElementById('authStatus');
-            status.innerHTML = '<span class="text-indigo-500 animate-pulse">در حال بررسی...</span>';
+            const btn = document.querySelector('#authSection button');
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> در حال ورود...';
             
             fetch('/api/auth', { headers: { 'X-API-Key': key } })
                 .then(r => r.ok ? r.json() : Promise.reject())
@@ -686,13 +704,13 @@ func (h *Handler) WebHandler(w http.ResponseWriter, r *http.Request) {
                         setTimeout(() => document.getElementById('authSection').classList.add('hidden'), 300);
                         document.getElementById('mainContent').classList.remove('hidden');
                         loadCollections();
-                        showToast('خوش آمدید', 'success');
+                        showToast('خوش آمدید! 👋', 'success');
                     }
                 })
                 .catch(() => {
-                    status.innerHTML = '<span class="text-red-500"><i class="fas fa-exclamation-triangle"></i> کلید نامعتبر است</span>';
-                    document.getElementById('apiKey').classList.add('ring-2', 'ring-red-500');
-                    setTimeout(() => document.getElementById('apiKey').classList.remove('ring-2', 'ring-red-500'), 2000);
+                    btn.innerHTML = 'ورود به پنل';
+                    showToast('کلید API نامعتبر است', 'error');
+                    document.getElementById('apiKey').classList.add('border-red-500');
                 });
         }
 
@@ -701,10 +719,10 @@ func (h *Handler) WebHandler(w http.ResponseWriter, r *http.Request) {
             location.reload();
         }
 
-        // --- Core Logic ---
+        // Logic
         function loadCollections() {
-            const btn = document.querySelector('.fa-sync-alt');
-            btn.classList.add('fa-spin');
+            const icon = document.querySelector('.fa-sync-alt');
+            icon.classList.add('fa-spin');
             
             fetchAPI('/api/collections')
                 .then(r => r.json())
@@ -712,15 +730,13 @@ func (h *Handler) WebHandler(w http.ResponseWriter, r *http.Request) {
                     state.collections = data;
                     renderSidebar();
                     updateGlobalStats();
-                    // Refresh current view if needed
                     if (state.currentCol && state.collections[state.currentCol]) {
                         renderTable(state.currentCol);
-                    } else if (state.currentCol && !state.collections[state.currentCol]) {
-                        // Collection was deleted
+                    } else if (state.currentCol) {
                         showDashboard();
                     }
                 })
-                .finally(() => setTimeout(() => btn.classList.remove('fa-spin'), 500));
+                .finally(() => setTimeout(() => icon.classList.remove('fa-spin'), 500));
         }
 
         function renderSidebar() {
@@ -728,393 +744,284 @@ func (h *Handler) WebHandler(w http.ResponseWriter, r *http.Request) {
             const search = document.getElementById('searchCollection').value.toLowerCase();
             list.innerHTML = '';
             
-            const sortedCols = Object.keys(state.collections).sort();
-            
-            if (sortedCols.length === 0) {
-                list.innerHTML = '<div class="text-center text-slate-400 text-xs py-4">کالکشنی یافت نشد</div>';
-                return;
-            }
+            const cols = Object.keys(state.collections).sort();
+            if (!cols.length) list.innerHTML = '<div class="text-center text-gray-400 text-xs py-4">خالی</div>';
 
-            sortedCols.forEach(col => {
+            cols.forEach(col => {
                 if (!col.toLowerCase().includes(search)) return;
-                
+                const active = state.currentCol === col;
                 const count = state.collections[col].length;
-                const isActive = state.currentCol === col;
                 
-                const div = document.createElement('div');
-                div.className = 'group flex justify-between items-center px-3 py-2.5 rounded-lg cursor-pointer text-xs font-medium transition-all ' + 
-                    (isActive ? 'bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-sm' : 'text-slate-600 hover:bg-slate-100 border border-transparent');
-                
-                div.onclick = () => selectCollection(col);
-                
-                div.innerHTML = 
-                    '<div class="flex items-center gap-2 truncate">' +
-                        '<i class="fas ' + (isActive ? 'fa-folder-open' : 'fa-folder') + ' ' + (isActive ? 'text-indigo-500' : 'text-slate-400') + '"></i>' +
-                        '<span class="truncate">' + col + '</span>' +
+                const item = document.createElement('div');
+                item.className = 'sidebar-item flex justify-between items-center px-4 py-3 rounded-lg cursor-pointer mb-1 mx-2 ' + (active ? 'active' : 'text-gray-600');
+                item.onclick = () => selectCollection(col);
+                item.innerHTML = 
+                    '<div class="flex items-center gap-3 overflow-hidden">' +
+                        '<i class="fas ' + (active ? 'fa-folder-open' : 'fa-folder') + '"></i>' +
+                        '<span class="truncate font-medium text-xs">' + col + '</span>' +
                     '</div>' +
-                    '<span class="px-2 py-0.5 rounded bg-white border ' + (isActive ? 'border-indigo-100 text-indigo-600' : 'border-slate-200 text-slate-400') + '">' + count + '</span>';
-                
-                list.appendChild(div);
+                    '<span class="bg-gray-100 text-gray-500 text-[10px] px-2 py-0.5 rounded-full font-mono">' + count + '</span>';
+                list.appendChild(item);
             });
         }
 
         function selectCollection(col) {
             state.currentCol = col;
-            document.getElementById('pageTitle').innerHTML = '<i class="fas fa-folder-open text-indigo-500"></i> ' + col;
+            document.getElementById('pageTitle').innerHTML = '<span class="text-indigo-600"><i class="fas fa-folder-open"></i></span> ' + col;
             document.getElementById('dashboardView').classList.add('hidden');
             document.getElementById('tableView').classList.remove('hidden');
-            document.getElementById('collectionActions').classList.remove('hidden');
-            document.getElementById('collectionMenuOptions').classList.remove('hidden');
             document.getElementById('recordCountBadge').textContent = state.collections[col].length + ' رکورد';
-            
-            renderSidebar(); // Update active state
+            renderSidebar();
             renderTable(col);
         }
 
         function showDashboard() {
             state.currentCol = null;
-            document.getElementById('pageTitle').innerHTML = '<i class="fas fa-home text-slate-400"></i> داشبورد';
+            document.getElementById('pageTitle').innerHTML = '<i class="fas fa-home text-gray-400"></i> داشبورد';
             document.getElementById('dashboardView').classList.remove('hidden');
             document.getElementById('tableView').classList.add('hidden');
-            document.getElementById('collectionActions').classList.add('hidden');
-            document.getElementById('collectionMenuOptions').classList.add('hidden');
             renderSidebar();
         }
 
         function renderTable(col) {
             const tbody = document.getElementById('keysTableBody');
-            const keys = state.collections[col] || [];
             const filter = document.getElementById('searchKey').value.toLowerCase();
+            const keys = (state.collections[col] || []).filter(k => k.toLowerCase().includes(filter));
             
             tbody.innerHTML = '';
-            
-            const filteredKeys = keys.filter(k => k.toLowerCase().includes(filter));
-            
-            if (filteredKeys.length === 0) {
+            if (!keys.length) {
                 document.getElementById('tableEmptyState').classList.remove('hidden');
-            } else {
-                document.getElementById('tableEmptyState').classList.add('hidden');
-                
-                filteredKeys.forEach((key, index) => {
-                    const tr = document.createElement('tr');
-                    tr.className = 'table-row-hover group border-b border-slate-50 transition-colors fade-in';
-                    tr.style.animationDelay = (index * 20) + 'ms';
-                    
-                    const cellKey = document.createElement('td');
-                    cellKey.className = 'px-6 py-3 whitespace-nowrap text-xs font-bold text-slate-700 dir-ltr text-left font-mono cursor-pointer hover:text-indigo-600';
-                    cellKey.textContent = key;
-                    cellKey.onclick = () => editRecord(col, key);
-
-                    const cellValue = document.createElement('td');
-                    cellValue.className = 'px-6 py-3 text-xs text-slate-500 dir-ltr text-left font-mono truncate-text relative';
-                    cellValue.id = 'val-' + col + '-' + key;
-                    cellValue.textContent = '...'; // Loading state
-                    
-                    // Lazy load value
-                    loadValuePreview(col, key, cellValue);
-
-                    const cellActions = document.createElement('td');
-                    cellActions.className = 'px-6 py-3 whitespace-nowrap text-center text-xs';
-                    cellActions.innerHTML = 
-                        '<div class="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">' +
-                            '<button onclick="copyToClipboard(\'' + col + '\', \'' + key + '\')" class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded" title="کپی"><i class="fas fa-copy"></i></button>' +
-                            '<button onclick="editRecord(\'' + col + '\', \'' + key + '\')" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="ویرایش"><i class="fas fa-edit"></i></button>' +
-                            '<button onclick="deleteRecord(\'' + col + '\', \'' + key + '\')" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded" title="حذف"><i class="fas fa-trash-alt"></i></button>' +
-                        '</div>';
-
-                    tr.appendChild(cellKey);
-                    tr.appendChild(cellValue);
-                    tr.appendChild(cellActions);
-                    tbody.appendChild(tr);
-                });
-            }
-        }
-
-        // Fetch individual record for preview (No logic change, just utilizing existing API)
-        function loadValuePreview(col, key, element) {
-            const cacheKey = col + ':' + key;
-            if (state.cache[cacheKey]) {
-                element.textContent = truncateString(state.cache[cacheKey], 50);
                 return;
             }
+            document.getElementById('tableEmptyState').classList.add('hidden');
 
+            keys.forEach((key, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = 'table-row-hover border-b border-gray-50 transition-colors fade-in';
+                tr.style.animationDelay = (idx * 30) + 'ms';
+                
+                const cellKey = document.createElement('td');
+                cellKey.className = 'px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-700 dir-ltr text-left font-mono';
+                cellKey.textContent = key;
+
+                const cellVal = document.createElement('td');
+                cellVal.className = 'px-6 py-4 dir-ltr text-left';
+                cellVal.innerHTML = '<div class="skeleton w-32 h-6 inline-block"></div>';
+                
+                loadValue(col, key, cellVal);
+
+                const cellAct = document.createElement('td');
+                cellAct.className = 'px-6 py-4 whitespace-nowrap text-center';
+                cellAct.innerHTML = 
+                    '<div class="flex justify-center gap-2">' +
+                        '<button onclick="editRecord(\'' + col + '\', \'' + key + '\')" class="w-8 h-8 rounded-lg text-indigo-500 hover:bg-indigo-50 transition-colors"><i class="fas fa-pen"></i></button>' +
+                        '<button onclick="deleteRecord(\'' + col + '\', \'' + key + '\')" class="w-8 h-8 rounded-lg text-red-500 hover:bg-red-50 transition-colors"><i class="fas fa-trash"></i></button>' +
+                    '</div>';
+                
+                tr.appendChild(cellKey);
+                tr.appendChild(cellVal);
+                tr.appendChild(cellAct);
+                tbody.appendChild(tr);
+            });
+        }
+
+        function loadValue(col, key, el) {
+            const cacheKey = col + ':' + key;
+            if (state.cache[cacheKey]) {
+                renderValue(el, state.cache[cacheKey]);
+                return;
+            }
+            
             fetchAPI('/api/' + col + '/' + key)
                 .then(r => r.text())
-                .then(text => {
-                    state.cache[cacheKey] = text;
-                    element.textContent = truncateString(text, 50);
-                    element.title = text; // Tooltip full value
+                .then(txt => {
+                    state.cache[cacheKey] = txt;
+                    renderValue(el, txt);
                 })
-                .catch(() => {
-                    element.textContent = 'خطا در بارگذاری';
-                    element.className += ' text-red-400';
-                });
+                .catch(() => el.innerHTML = '<span class="text-red-400 text-xs">Error</span>');
         }
 
-        function filterKeys() {
-            if (state.currentCol) renderTable(state.currentCol);
+        function renderValue(el, txt) {
+            const short = txt.length > 60 ? txt.substring(0, 60) + '...' : txt;
+            el.innerHTML = '<div class="group relative inline-block cursor-pointer" onclick="copyText(this, \'' + txt.replace(/'/g, "\\'") + '\')">' +
+                '<code class="bg-gray-100 text-gray-600 px-2 py-1 rounded text-[11px] font-mono border border-gray-200 group-hover:bg-indigo-50 group-hover:text-indigo-700 transition-colors">' + short + '</code>' +
+                '<span class="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">کپی</span>' +
+            '</div>';
         }
 
-        // --- Modals & Actions ---
+        // CRUD Actions
         function showCreateModal() {
-            document.getElementById('modalTitle').textContent = 'رکورد جدید';
-            document.getElementById('modalIcon').innerHTML = '<i class="fas fa-plus-circle text-indigo-500"></i>';
+            resetModal('رکورد جدید', 'fas fa-plus', 'bg-indigo-600', false);
             document.getElementById('inputCollection').value = state.currentCol || '';
-            document.getElementById('inputCollection').readOnly = false;
-            document.getElementById('inputCollection').classList.remove('bg-slate-100', 'text-slate-500');
-            document.getElementById('inputKey').value = '';
-            document.getElementById('inputKey').readOnly = false;
-            document.getElementById('inputKey').classList.remove('bg-slate-100', 'text-slate-500');
-            document.getElementById('inputData').value = '';
-            
-            const modal = document.getElementById('modalBackdrop');
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-                document.getElementById('modalContent').classList.remove('scale-95');
-                document.getElementById('modalContent').classList.add('scale-100');
-            }, 10);
+            openModal();
         }
 
         function editRecord(col, key) {
-            // Pre-fill from cache if available to feel faster
-            const cacheVal = state.cache[col + ':' + key];
-            document.getElementById('inputData').value = cacheVal || 'در حال بارگذاری...';
-            
-            document.getElementById('modalTitle').textContent = 'ویرایش رکورد';
-            document.getElementById('modalIcon').innerHTML = '<i class="fas fa-edit text-blue-500"></i>';
+            resetModal('ویرایش رکورد', 'fas fa-pen', 'bg-blue-600', true);
             document.getElementById('inputCollection').value = col;
-            document.getElementById('inputCollection').readOnly = true;
-            document.getElementById('inputCollection').classList.add('bg-slate-100', 'text-slate-500');
             document.getElementById('inputKey').value = key;
-            document.getElementById('inputKey').readOnly = true;
-            document.getElementById('inputKey').classList.add('bg-slate-100', 'text-slate-500');
             
-            const modal = document.getElementById('modalBackdrop');
-            modal.classList.remove('hidden');
-            setTimeout(() => {
-                modal.classList.remove('opacity-0');
-                document.getElementById('modalContent').classList.remove('scale-95');
-                document.getElementById('modalContent').classList.add('scale-100');
-            }, 10);
-
-            // Fetch fresh data
-            fetchAPI('/api/' + col + '/' + key)
-                .then(r => r.text())
-                .then(text => {
-                    document.getElementById('inputData').value = text;
-                    state.cache[col + ':' + key] = text; // Update cache
+            const cached = state.cache[col + ':' + key];
+            document.getElementById('inputData').value = cached || 'Loading...';
+            
+            openModal();
+            if (!cached) {
+                fetchAPI('/api/' + col + '/' + key).then(r => r.text()).then(t => {
+                    document.getElementById('inputData').value = t;
+                    state.cache[col + ':' + key] = t;
                 });
-        }
-
-        function closeModal() {
-            const modal = document.getElementById('modalBackdrop');
-            modal.classList.add('opacity-0');
-            document.getElementById('modalContent').classList.remove('scale-100');
-            document.getElementById('modalContent').classList.add('scale-95');
-            setTimeout(() => modal.classList.add('hidden'), 300);
+            }
         }
 
         function saveRecord() {
             const col = document.getElementById('inputCollection').value.trim();
             const key = document.getElementById('inputKey').value.trim();
             const data = document.getElementById('inputData').value;
-
+            
             if (!col || !key) return showToast('نام کالکشن و کلید الزامی است', 'error');
 
-            fetchAPI('/api/' + col + '/' + key, {
-                method: 'POST',
-                body: data
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (res.success) {
-                    showToast('رکورد با موفقیت ذخیره شد');
-                    state.cache[col + ':' + key] = data; // Update cache immediately
-                    closeModal();
-                    // Auto Refresh Logic
-                    if (!state.collections[col]) state.collections[col] = [];
-                    if (!state.collections[col].includes(key)) state.collections[col].push(key);
-                    
-                    // If we are in this collection, render table, else load collections to update counts
-                    if (state.currentCol === col) {
-                        renderTable(col);
-                        // Also fetch collections in background to ensure sync
-                        loadCollections(); 
-                    } else {
+            const btn = document.querySelector('#modalContent button:last-child');
+            const originText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ذخیره...';
+
+            fetchAPI('/api/' + col + '/' + key, { method: 'POST', body: data })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        state.cache[col + ':' + key] = data;
+                        showToast('ذخیره شد');
+                        closeModal();
+                        if (state.currentCol === col) renderTable(col);
                         loadCollections();
-                    }
-                } else {
-                    showToast(res.error, 'error');
+                    } else showToast(res.error, 'error');
+                })
+                .finally(() => btn.innerHTML = originText);
+        }
+
+        function deleteRecord(col, key) {
+            if (!confirm('آیا مطمئن هستید؟')) return;
+            fetchAPI('/api/' + col + '/' + key, { method: 'DELETE' }).then(r => r.json()).then(res => {
+                if (res.success) {
+                    delete state.cache[col + ':' + key];
+                    state.collections[col] = state.collections[col].filter(k => k !== key);
+                    renderTable(col);
+                    document.getElementById('recordCountBadge').textContent = state.collections[col].length + ' رکورد';
+                    showToast('حذف شد');
+                }
+            });
+        }
+        
+        function deleteCurrentCollection() {
+            const col = state.currentCol;
+            if(!confirm('هشدار: کل کالکشن "' + col + '" حذف میشود!')) return;
+            fetchAPI('/api/collections/' + col, { method: 'DELETE' }).then(r => r.json()).then(res => {
+                if(res.success) {
+                    delete state.collections[col];
+                    showDashboard();
+                    showToast('کالکشن حذف شد');
                 }
             });
         }
 
-        function deleteRecord(col, key) {
-            if (!confirm('آیا از حذف رکورد "'+key+'" مطمئن هستید؟')) return;
-            
-            fetchAPI('/api/' + col + '/' + key, { method: 'DELETE' })
-                .then(r => r.json())
-                .then(res => {
-                    if (res.success) {
-                        showToast('رکورد حذف شد', 'success');
-                        delete state.cache[col + ':' + key];
-                        
-                        // Optimistic update
-                        state.collections[col] = state.collections[col].filter(k => k !== key);
-                        renderTable(col);
-                        document.getElementById('recordCountBadge').textContent = state.collections[col].length + ' رکورد';
-                        renderSidebar();
-                    } else {
-                        showToast(res.error, 'error');
-                    }
-                });
+        // Utils
+        function openModal() {
+            const m = document.getElementById('modalBackdrop');
+            m.classList.remove('hidden');
+            setTimeout(() => {
+                m.classList.remove('opacity-0');
+                document.getElementById('modalContent').classList.remove('scale-95');
+                document.getElementById('modalContent').classList.add('scale-100');
+            }, 10);
         }
 
-        function deleteCurrentCollection() {
-            const col = state.currentCol;
-            if (!col || !confirm('هشدار: کل کالکشن "'+col+'" حذف خواهد شد. این عملیات غیرقابل بازگشت است.')) return;
-
-            fetchAPI('/api/collections/' + col, { method: 'DELETE' })
-                .then(r => r.json())
-                .then(res => {
-                    if (res.success) {
-                        showToast('کالکشن حذف شد');
-                        delete state.collections[col];
-                        showDashboard();
-                    } else {
-                        showToast(res.error, 'error');
-                    }
-                });
+        function closeModal() {
+            const m = document.getElementById('modalBackdrop');
+            m.classList.add('opacity-0');
+            document.getElementById('modalContent').classList.add('scale-95');
+            setTimeout(() => m.classList.add('hidden'), 300);
         }
 
-        // --- Utilities ---
-        function copyToClipboard(col, key) {
-            // Try to get from cache first, else fetch
-            const val = state.cache[col + ':' + key];
-            if (val) {
-                navigator.clipboard.writeText(val);
-                showToast('کپی شد');
-            } else {
-                fetchAPI('/api/' + col + '/' + key)
-                    .then(r => r.text())
-                    .then(text => {
-                        navigator.clipboard.writeText(text);
-                        showToast('کپی شد');
-                        state.cache[col + ':' + key] = text;
-                    });
+        function resetModal(title, icon, color, readonly) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalIcon').className = 'w-8 h-8 rounded-lg flex items-center justify-center shadow-sm text-white ' + color;
+            document.getElementById('modalIcon').innerHTML = '<i class="' + icon + '"></i>';
+            document.getElementById('inputCollection').readOnly = readonly;
+            document.getElementById('inputKey').readOnly = readonly;
+            if (!readonly) {
+                document.getElementById('inputCollection').value = '';
+                document.getElementById('inputKey').value = '';
+                document.getElementById('inputData').value = '';
             }
         }
 
-        function toggleMenu(id) {
-            const el = document.getElementById(id);
-            if (el.classList.contains('hidden')) {
-                el.classList.remove('hidden');
-            } else {
-                el.classList.add('hidden');
-            }
-        }
-
-        function updateGlobalStats() {
-            const cols = Object.keys(state.collections).length;
-            const keys = Object.values(state.collections).reduce((a, b) => a + b.length, 0);
-            
-            document.getElementById('dashTotalCollections').textContent = cols;
-            document.getElementById('dashTotalKeys').textContent = keys;
-            
-            // Fake Size Calculation (average 100 bytes per key/value pair)
-            const sizeKB = Math.round((keys * 100) / 1024);
-            document.getElementById('dbSize').textContent = sizeKB + ' KB';
-        }
-
-        function truncateString(str, num) {
-            if (str.length <= num) return str;
-            return str.slice(0, num) + '...';
+        function copyText(el, txt) {
+            navigator.clipboard.writeText(txt);
+            const tooltip = el.querySelector('span');
+            const original = tooltip.textContent;
+            tooltip.textContent = 'کپی شد!';
+            setTimeout(() => tooltip.textContent = original, 1000);
         }
 
         function showToast(msg, type = 'success') {
             const t = document.getElementById('toast');
-            const msgEl = document.getElementById('toastMsg');
-            const icon = t.querySelector('i');
+            const icon = document.getElementById('toastIcon');
+            document.getElementById('toastMsg').textContent = msg;
             
-            msgEl.textContent = msg;
+            t.className = 'fixed top-0 left-1/2 z-[100] px-6 py-4 rounded-xl shadow-2xl text-white font-bold flex items-center gap-3 toast show ' + (type === 'error' ? 'bg-red-500' : 'bg-gray-800');
+            icon.innerHTML = type === 'error' ? '<i class="fas fa-exclamation-circle text-xl"></i>' : '<i class="fas fa-check-circle text-green-400 text-xl"></i>';
             
-            t.className = 'fixed top-0 left-1/2 z-[60] px-6 py-3 rounded-lg shadow-xl text-white font-medium flex items-center gap-3 toast show shadow-lg shadow-slate-300';
-            
-            if (type === 'error') {
-                t.classList.add('bg-red-500');
-                icon.className = 'fas fa-exclamation-circle';
-            } else {
-                t.classList.add('bg-slate-800');
-                icon.className = 'fas fa-check-circle text-green-400';
-            }
-            
-            setTimeout(() => {
-                t.classList.remove('show');
-            }, 3000);
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+        
+        function updateGlobalStats() {
+            const cols = Object.keys(state.collections).length;
+            const keys = Object.values(state.collections).reduce((a, b) => a + b.length, 0);
+            document.getElementById('dashTotalCollections').textContent = cols;
+            document.getElementById('dashTotalKeys').textContent = keys;
+            document.getElementById('dbSize').textContent = Math.round(keys * 0.1) + ' KB';
+        }
+        
+        function filterKeys() {
+            if(state.currentCol) renderTable(state.currentCol);
         }
         
         function prettifyJSON() {
-            const textarea = document.getElementById('inputData');
-            try {
-                // Try parsing as JSON first
-                const obj = JSON.parse(textarea.value);
-                textarea.value = JSON.stringify(obj, null, 2);
-            } catch (e) {
-                showToast('داده ورودی JSON معتبر نیست', 'error');
-            }
+            const el = document.getElementById('inputData');
+            try { el.value = JSON.stringify(JSON.parse(el.value), null, 2); } catch(e) { showToast('JSON نامعتبر', 'error'); }
         }
 
         function backupDatabase() {
-            fetchAPI('/api/backup')
-                .then(r => r.blob())
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'toondb-' + new Date().toISOString().slice(0,10) + '.json';
-                    a.click();
-                    showToast('دانلود شروع شد');
-                });
+            showToast('در حال دانلود...');
+            fetchAPI('/api/backup').then(r => r.blob()).then(b => {
+                const u = URL.createObjectURL(b);
+                const a = document.createElement('a');
+                a.href = u; a.download = 'backup.json'; a.click();
+            });
         }
-
+        
         function restoreDatabase() {
-            const file = document.getElementById('restoreFile').files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = (e) => {
+            const f = document.getElementById('restoreFile').files[0];
+            if(!f) return;
+            const r = new FileReader();
+            r.onload = e => {
                 try {
-                    const json = JSON.parse(e.target.result);
-                    fetchAPI('/api/restore', { method: 'POST', body: JSON.stringify(json) })
-                        .then(r => r.json())
-                        .then(res => {
-                            if (res.success) {
-                                showToast('بازیابی موفقیت آمیز بود');
-                                loadCollections();
-                            } else {
-                                showToast('خطا در بازیابی', 'error');
-                            }
-                        });
-                } catch(err) { showToast('فایل نامعتبر', 'error'); }
+                    fetchAPI('/api/restore', {method:'POST', body: e.target.result}).then(res=>res.json()).then(d=>{
+                        d.success ? (showToast('بازیابی شد'), loadCollections()) : showToast('خطا', 'error');
+                    });
+                } catch(e) {}
             };
-            reader.readAsText(file);
+            r.readAsText(f);
         }
 
-        // --- Keyboard Shortcuts ---
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeModal();
-            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        // Shortcuts
+        document.addEventListener('keydown', e => {
+            if(e.key === 'Escape') closeModal();
+            if((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
-                if (!document.getElementById('modalBackdrop').classList.contains('hidden')) {
-                    saveRecord();
-                }
+                if(!document.getElementById('modalBackdrop').classList.contains('hidden')) saveRecord();
             }
         });
-        
-        document.getElementById('apiKey').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') authenticate();
-        });
+        document.getElementById('apiKey').addEventListener('keypress', e => e.key === 'Enter' && authenticate());
     </script>
 </body>
 </html>`
